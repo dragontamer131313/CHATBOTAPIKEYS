@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: rugged-ai-api
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PRIMARY_LLM_BASE_URL
+        sync: false
+      - key: PRIMARY_LLM_API_KEY
+        sync: false
+      - key: PRIMARY_LLM_MODEL
+        value: local-model
+      - key: BACKUP_LLM_BASE_URL
+        sync: false
+      - key: BACKUP_LLM_API_KEY
+        sync: false
+      - key: BACKUP_LLM_MODEL
+        value: local-model
+      - key: MAX_CONCURRENT_REQUESTS
+        value: "8"
