@@ -1,0 +1,50 @@
+name: Unpack Rugged AI
+
+on:
+  push:
+    paths:
+      - "*.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find and unpack ZIP
+        run: |
+          ZIP=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found"
+            exit 1
+          fi
+
+          echo "Extracting $ZIP"
+
+          rm -rf backend frontend docker deploy examples
+
+          mkdir -p /tmp/rugged
+          unzip -o "$ZIP" -d /tmp/rugged
+
+          cp -R /tmp/rugged/. .
+
+          rm -f "$ZIP"
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add .
+
+          git commit -m "Extract Rugged AI project"
+
+          git push
