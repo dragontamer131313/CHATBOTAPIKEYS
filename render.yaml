@@ -5,21 +5,33 @@ services:
     dockerfilePath: ./docker/Dockerfile
     healthCheckPath: /health
     envVars:
-      - key: ADMIN_TOKEN
-        sync: false
       - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: DATABASE_URL
         sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: MAX_CONCURRENCY
+        value: "32"
+      - key: MAX_REQUEST_BYTES
+        value: "262144"
+      - key: RATE_LIMIT_PER_MIN
+        value: "60"
+      - key: WEB_CONCURRENCY
+        value: "1"
       - key: PRIMARY_LLM_BASE_URL
         sync: false
       - key: PRIMARY_LLM_API_KEY
         sync: false
       - key: PRIMARY_LLM_MODEL
-        value: local-model
+        value: "rugged-local"
       - key: BACKUP_LLM_BASE_URL
         sync: false
       - key: BACKUP_LLM_API_KEY
         sync: false
       - key: BACKUP_LLM_MODEL
-        value: local-model
-      - key: MAX_CONCURRENT_REQUESTS
-        value: "8"
+        value: "rugged-local"

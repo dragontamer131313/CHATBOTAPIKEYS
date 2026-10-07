@@ -3,3 +3,6 @@ uvicorn[standard]
 httpx
 pydantic
 PyJWT
+SQLAlchemy>=2.0
+psycopg[binary]
+redis>=5.0
