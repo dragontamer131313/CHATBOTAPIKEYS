@@ -1,0 +1,10 @@
+{
+  "name": "Rugged AI",
+  "short_name": "Rugged AI",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0e13",
+  "theme_color": "#10131a",
+  "description": "Local-first AI chatbot with optional Rugged AI server fallback.",
+  "icons": []
+}
