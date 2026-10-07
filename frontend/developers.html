@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rugged AI Developer Keys</title>
+<style>
+body{margin:0;background:#0b0e13;color:#eef2f7;font:15px system-ui;padding:24px}
+main{max-width:650px;margin:auto}.card{background:#141922;border:1px solid #2a3342;border-radius:14px;padding:18px;margin:12px 0}
+input,select,button{width:100%;box-sizing:border-box;padding:11px;margin:6px 0;border-radius:10px;border:1px solid #2a3342;background:#0f141c;color:#eef2f7}
+button{cursor:pointer;background:#1a202b}button.primary{background:#69a7ff;color:#06101f;font-weight:700}
+pre{white-space:pre-wrap;word-break:break-all;background:#0f141c;padding:12px;border-radius:10px}
+small{color:#9ba7b8}
+</style>
+</head>
+<body><main>
+<h1>Rugged AI Developer Keys</h1>
+<p><small>Create your Rugged account, then create a key for your own apps. These are Rugged keys, not OpenAI keys.</small></p>
+<div class="card">
+<label>Rugged API URL<input id="api" placeholder="https://your-service.onrender.com"></label>
+<label>Email<input id="email" type="email"></label>
+<label>Password<input id="password" type="password"></label>
+<label>Key name<input id="name" value="My Project"></label>
+<label>Edition<select id="edition"><option value="standard">Standard — General</option><option value="nsfw">NSFW-capable — General + Adult</option></select></label>
+<button class="primary" id="register">Create account</button>
+<button id="login">Log in</button>
+<button id="key">Create API key</button>
+<div id="out"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let token=localStorage.getItem("rugged_dev_token")||"";
+$("api").value=localStorage.getItem("rugged_dev_api")||"";
+async function call(path,body,auth=false){
+ const base=$("api").value.trim().replace(/\/$/,""); localStorage.setItem("rugged_dev_api",base);
+ const headers={"Content-Type":"application/json"}; if(auth)headers.Authorization="Bearer "+token;
+ const r=await fetch(base+path,{method:"POST",headers,body:JSON.stringify(body)});
+ const text=await r.text(); let data; try{data=JSON.parse(text)}catch{data={raw:text}};
+ if(!r.ok)throw new Error(data.detail||data.message||text); return data;
+}
+function show(x){$("out").innerHTML="<pre>"+JSON.stringify(x,null,2).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))+"</pre>"}
+$("register").onclick=async()=>{try{const d=await call("/auth/register",{email:$("email").value,password:$("password").value});token=d.token;localStorage.setItem("rugged_dev_token",token);show({message:"Account created. Now press Create API key.",user_id:d.user_id})}catch(e){show({error:e.message})}};
+$("login").onclick=async()=>{try{const d=await call("/auth/login",{email:$("email").value,password:$("password").value});token=d.token;localStorage.setItem("rugged_dev_token",token);show({message:"Logged in. Now press Create API key.",user_id:d.user_id})}catch(e){show({error:e.message})}};
+$("key").onclick=async()=>{try{if(!token)throw new Error("Register or log in first.");const d=await call("/api/keys",{name:$("name").value,edition:$("edition").value},true);show({message:"Save this key now. The secret is returned when it is created.",...d})}catch(e){show({error:e.message})}};
+</script></main></body></html>
