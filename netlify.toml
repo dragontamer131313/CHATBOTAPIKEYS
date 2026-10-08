@@ -1,18 +1,17 @@
 [build]
   publish = "frontend"
 
-# Optional: once you know your Render URL, you can replace YOUR-RENDER-SERVICE
-# with it to make /api/* and /v1/* available through the Netlify domain.
-# The frontend also supports entering the Render API URL directly.
+# Recommended: replace YOUR-RENDER-SERVICE with your real Render service URL.
+# This lets the public Netlify site call the Render API without asking visitors for a server URL.
 #
-# [[redirects]]
-#   from = "/api/*"
-#   to = "https://YOUR-RENDER-SERVICE.onrender.com/api/:splat"
-#   status = 200
-#   force = true
-#
-# [[redirects]]
-#   from = "/v1/*"
-#   to = "https://YOUR-RENDER-SERVICE.onrender.com/v1/:splat"
-#   status = 200
-#   force = true
+[[redirects]]
+  from = "/api/*"
+  to = "https://YOUR-RENDER-SERVICE.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/v1/*"
+  to = "https://YOUR-RENDER-SERVICE.onrender.com/v1/:splat"
+  status = 200
+  force = true

@@ -28,6 +28,8 @@ PROVIDERS=[
     ("primary", os.getenv("PRIMARY_LLM_BASE_URL", "").rstrip("/"), os.getenv("PRIMARY_LLM_API_KEY", ""), os.getenv("PRIMARY_LLM_MODEL", "rugged-local")),
     ("backup", os.getenv("BACKUP_LLM_BASE_URL", "").rstrip("/"), os.getenv("BACKUP_LLM_API_KEY", ""), os.getenv("BACKUP_LLM_MODEL", "rugged-local")),
 ]
+LOCAL_MODEL_STANDARD=os.getenv("RUGGED_LOCAL_MODEL_STANDARD", "Llama-3.2-1B-Instruct-q4f32_1-MLC")
+LOCAL_MODEL_ADULT=os.getenv("RUGGED_LOCAL_MODEL_ADULT", "")
 
 class Base(DeclarativeBase): pass
 class User(Base):
@@ -36,6 +38,8 @@ class ApiKey(Base):
     __tablename__="api_keys"; id:Mapped[str]=mapped_column(String(64),primary_key=True); user_id:Mapped[str]=mapped_column(String(64),index=True); name:Mapped[str]=mapped_column(String(100)); key_hash:Mapped[str]=mapped_column(String(128),unique=True,index=True); edition:Mapped[str]=mapped_column(String(16)); active:Mapped[bool]=mapped_column(Boolean,default=True); created:Mapped[float]=mapped_column(Float); last_used:Mapped[Optional[float]]=mapped_column(Float,nullable=True)
 class Usage(Base):
     __tablename__="usage"; id:Mapped[str]=mapped_column(String(64),primary_key=True); user_id:Mapped[str]=mapped_column(String(64),index=True); key_id:Mapped[str]=mapped_column(String(64),index=True); provider:Mapped[str]=mapped_column(String(32)); input_tokens:Mapped[int]=mapped_column(Integer,default=0); output_tokens:Mapped[int]=mapped_column(Integer,default=0); created:Mapped[float]=mapped_column(Float)
+class KeyDeployment(Base):
+    __tablename__="key_deployments"; key_id:Mapped[str]=mapped_column(String(64),primary_key=True); deployment:Mapped[str]=mapped_column(String(24)); model_profile:Mapped[str]=mapped_column(String(16)); created:Mapped[float]=mapped_column(Float)
 
 connect_args={"check_same_thread":False} if DATABASE_URL.startswith("sqlite") else {}
 engine=create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
@@ -50,7 +54,7 @@ if REDIS_URL:
     except Exception:
         _redis=None
 
-app=FastAPI(title="Rugged AI API",version="7.0")
+app=FastAPI(title="Rugged AI API",version="8.0")
 app.add_middleware(CORSMiddleware,allow_origins=CORS_ORIGINS,allow_methods=["*"],allow_headers=["*"],allow_credentials=False)
 
 @app.middleware("http")
@@ -95,19 +99,28 @@ def rate_limit(key_id:str):
 
 class AccountIn(BaseModel): email:str; password:str=Field(min_length=8,max_length=256)
 class KeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
-class PublicKeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
+class PublicKeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"; deployment:str="server"
 class Chat(BaseModel): messages:list[dict]; content_mode:str="general"; model:Optional[str]=None; stream:bool=False; temperature:float=Field(.8,ge=0,max=2); max_tokens:int=Field(512,ge=1,le=4096)
 
 @app.get("/")
 def root():
-    return {"name":"Rugged AI API","version":"7.1","status":"online","docs":"/docs","health":"/health","chat":"/v1/chat/completions","developer_portal":"Use the Netlify frontend connected to this API."}
+    return {"name":"Rugged AI API","version":"8.0","status":"online","docs":"/docs","health":"/health","chat":"/v1/chat/completions","developer_portal":"Use the Netlify frontend connected to this API."}
 
 @app.get("/health")
-def health():return {"ok":True,"version":"7.1"}
+def health():return {"ok":True,"version":"8.0"}
 @app.get("/ready")
 def ready():return {"ready":True,"database":DATABASE_URL.split(":",1)[0],"redis":bool(_redis)}
 @app.get("/api/capabilities")
-def capabilities():return {"local_first":True,"remote_provider_optional":True,"postgres_supported":True,"redis_enabled":bool(_redis),"provider_count":sum(bool(x[1]) for x in PROVIDERS)}
+def capabilities():return {"local_first":True,"remote_provider_optional":True,"postgres_supported":True,"redis_enabled":bool(_redis),"provider_count":sum(bool(x[1]) for x in PROVIDERS),"local_models":{"standard":LOCAL_MODEL_STANDARD,"adult":LOCAL_MODEL_ADULT or None}}
+
+@app.get("/api/model-config")
+def model_config(authorization:Optional[str]=Header(None)):
+    k=key_auth(authorization)
+    with Session(engine) as db: cfg=db.scalar(select(KeyDeployment).where(KeyDeployment.key_id==k.id))
+    profile="adult" if k.edition=="nsfw" else "standard"
+    deployment=cfg.deployment if cfg else "server"
+    local_model=LOCAL_MODEL_ADULT if profile=="adult" else LOCAL_MODEL_STANDARD
+    return {"edition":k.edition,"profile":profile,"deployment":deployment,"server":True,"offline":deployment=="server+offline","local":{"enabled":deployment=="server+offline" and bool(local_model),"model":local_model or None,"runtime":"webllm"},"note":"Offline mode requires a compatible client runtime and model; the API key alone does not download a model into an arbitrary third-party app."}
 
 @app.post("/auth/register")
 def register(x:AccountIn):
@@ -129,6 +142,10 @@ def generate_public_key(x:PublicKeyIn, request:Request):
     """
     if x.edition not in ("standard", "nsfw"):
         raise HTTPException(400,"edition must be standard or nsfw")
+    if x.deployment not in ("server", "server+offline"):
+        raise HTTPException(400,"deployment must be server or server+offline")
+    if x.deployment=="server+offline" and x.edition=="nsfw" and not LOCAL_MODEL_ADULT:
+        raise HTTPException(409,"Adult offline mode is not configured on this server yet")
     # Basic abuse control for anonymous key creation. Redis is shared when available;
     # local fallback is intentionally conservative.
     ip=request.client.host if request.client else "unknown"
@@ -149,8 +166,10 @@ def generate_public_key(x:PublicKeyIn, request:Request):
     kid=str(uuid.uuid4())
     # Anonymous developer keys use a reserved owner; no login/account is required.
     with Session(engine) as db:
-        db.add(ApiKey(id=kid,user_id="public",name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time()));db.commit()
-    return {"api_key":raw,"id":kid,"edition":x.edition,"default_content_mode":"general","warning":"Save this API key now. The full secret will not be shown again."}
+        db.add(ApiKey(id=kid,user_id="public",name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time()))
+        db.add(KeyDeployment(key_id=kid,deployment=x.deployment,model_profile="adult" if x.edition=="nsfw" else "standard",created=time.time()))
+        db.commit()
+    return {"api_key":raw,"id":kid,"edition":x.edition,"deployment":x.deployment,"default_content_mode":"general","warning":"Save this API key now. The full secret will not be shown again."}
 
 @app.post("/api/keys")
 def create_key(x:KeyIn,authorization:Optional[str]=Header(None)):
@@ -204,13 +223,16 @@ async def chat(x:Chat,authorization:Optional[str]=Header(None)):
     if x.content_mode not in ("general","adult"):raise HTTPException(400,"Invalid mode")
     if x.content_mode=="adult" and k.edition!="nsfw":raise HTTPException(403,"NSFW-capable key required")
     system="General chat mode." if x.content_mode=="general" else "Adult-capable mode for adults. Never involve minors or sexual content involving minors. Follow applicable law and deployment rules."
+    selected_model=x.model
+    if not selected_model:
+        selected_model=(os.getenv("PRIMARY_LLM_MODEL_ADULT", "") if k.edition=="nsfw" else os.getenv("PRIMARY_LLM_MODEL_STANDARD", PROVIDERS[0][3])) or PROVIDERS[0][3]
     payload={"messages":[{"role":"system","content":system}]+x.messages,"temperature":x.temperature,"max_tokens":x.max_tokens}
     errors=[]
     async with sem:
         for pname,base,pkey,pmodel in PROVIDERS:
             if not base:continue
             try:
-                r=await provider_request(base,pkey,x.model or pmodel,payload,x.stream)
+                r=await provider_request(base,pkey,selected_model if pname=="primary" else (os.getenv("BACKUP_LLM_MODEL_ADULT","") if k.edition=="nsfw" else os.getenv("BACKUP_LLM_MODEL_STANDARD",pmodel)) or pmodel,payload,x.stream)
                 if r.status_code in (429,) or r.status_code>=500:
                     errors.append(f"{pname}: HTTP {r.status_code}");continue
                 if r.status_code>=400:raise HTTPException(r.status_code,r.text[:500])

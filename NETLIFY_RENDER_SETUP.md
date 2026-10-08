@@ -1,30 +1,49 @@
-# Rugged AI: Netlify + Render
+# Rugged AI site setup
 
-Render is the backend/API. Netlify is the public website.
+The public site is now a simple 3-step key generator:
+1. Regular or Adult
+2. Server only or Server + offline
+3. Get API key
 
-## Render
-1. Deploy the repository to Render as the existing Web Service.
-2. Confirm `https://YOUR-RENDER-URL/health` returns JSON with `ok: true`.
-3. The root URL should now return API information instead of a 404.
-4. Configure at least one model provider in Render:
-   - PRIMARY_LLM_BASE_URL
-   - PRIMARY_LLM_API_KEY
-   - PRIMARY_LLM_MODEL
-   - optional BACKUP_LLM_BASE_URL / BACKUP_LLM_API_KEY / BACKUP_LLM_MODEL
+No Rugged account is required.
 
-The API does not contain model weights itself. It needs a reachable OpenAI-compatible model server/provider unless a local model server is added.
+## Connect Netlify to Render
 
-## Netlify
-1. Create/open your Netlify site.
-2. Connect it to the same GitHub repository.
-3. Set the publish directory to `frontend` (the included `netlify.toml` already does this).
-4. Deploy.
-5. Open your Netlify URL.
-6. Open **Developer Portal** and enter your Render URL, for example:
-   `https://your-service.onrender.com`
-7. Generate a key. The full secret is shown only once.
+The site calls `/api/keys/generate` on the same origin by default. The cleanest production setup is a Netlify rewrite/proxy from `/api/*` to the Render API.
 
-The frontend can call Render directly because the API currently permits CORS. If you later want a same-domain `/api` proxy, put your real Render URL into the commented Netlify rewrite rules and redeploy.
+If you do not use a Netlify proxy, edit `frontend/config.js` before deploying and set:
 
-## Key generation
-`POST /api/keys/generate` creates a key without a Rugged account. The database stores only a SHA-256 hash of the secret. Anonymous generation is rate limited.
+```js
+window.RUGGED_API_URL = "https://YOUR-RENDER-SERVICE.onrender.com";
+```
+
+## Server + offline behavior
+
+The generated key stores its deployment policy. A client can call `/api/model-config` with the key. For `server+offline`, the response includes the compatible local model if one is configured.
+
+`frontend/rugged-client.js` is an optional client helper. It:
+- asks Rugged which deployment was selected;
+- checks whether WebGPU is available;
+- downloads/caches the configured WebLLM model when allowed;
+- otherwise uses `/v1/chat/completions` on the server.
+
+A key by itself cannot force an arbitrary third-party website/APK to install a model. The developer must integrate the Rugged client/runtime into that app. On devices without a compatible local runtime, the app falls back to the server.
+
+## Adult offline model
+
+Set `RUGGED_LOCAL_MODEL_ADULT` on Render to a compatible adult-capable model identifier before issuing Adult + Server + offline keys. Without that setting, the API intentionally refuses that combination rather than pretending the regular model is an adult model.
+
+For server model routing, configure:
+- `PRIMARY_LLM_MODEL_STANDARD`
+- `PRIMARY_LLM_MODEL_ADULT`
+- `BACKUP_LLM_MODEL_STANDARD`
+- `BACKUP_LLM_MODEL_ADULT`
+
+## What the generated key means
+
+- **Regular + Server only:** the app uses Rugged's server model.
+- **Regular + Server + offline:** the integrated client may choose a compatible local model and cache it on the user's device; otherwise it uses the server.
+- **Adult + Server only:** Adult requests use the configured adult server model.
+- **Adult + Server + offline:** only available after `RUGGED_LOCAL_MODEL_ADULT` is configured.
+
+The key is not a model file and cannot by itself make an arbitrary chatbot install software. The automatic device-aware behavior is implemented by the app's Rugged client integration.
