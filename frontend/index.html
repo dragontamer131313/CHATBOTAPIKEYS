@@ -45,7 +45,7 @@
       <div id="status" class="status">Starting local AI…</div>
     </div>
     <div>
-      <a href="developers.html" style="margin-right:10px">Developer keys</a><button id="settingsBtn">Settings</button>
+      <a href="developers.html" style="color:inherit;text-decoration:none;margin-right:12px">Developer Keys</a><button id="settingsBtn">Settings</button>
     </div>
   </header>
 
@@ -75,16 +75,14 @@
     </section>
 
     <section id="settings" class="card hidden">
-      <h3>Rugged AI API</h3>
+      <h3>Server fallback</h3>
       <label>Rugged API URL
         <input id="apiUrl" placeholder="https://your-service.onrender.com">
       </label>
-      <div class="grid" style="margin-top:10px">
-        <label>API key
-          <input id="apiKey" type="password" autocomplete="off">
-        </label>
-      </div>
-      <p class="small">Get a developer API key from <a href="developers.html">the Rugged AI Developer Portal</a>. The key is stored only in this browser and is used to call your Rugged AI server.</p>
+      <label>API key
+        <input id="apiKey" type="password" autocomplete="off">
+      </label>
+      <p class="small">The server is optional. Local mode does not require an OpenAI key or any AI-provider key.</p>
       <button id="closeSettings">Close</button>
     </section>
 
@@ -100,12 +98,11 @@
 </div>
 
 <script type="module">
-  const savedMessages = JSON.parse(localStorage.getItem("rugged_chat_messages") || "[]");
   const state = {
     engine: null,
     localReady: false,
     useServer: false,
-    messages: savedMessages,
+    messages: [],
     mode: localStorage.getItem("rugged_mode") || "general",
     apiUrl: localStorage.getItem("rugged_api_url") || "",
     apiKey: localStorage.getItem("rugged_api_key") || ""
@@ -123,7 +120,6 @@
 
   function addMessage(role, content) {
     state.messages.push({role, content});
-    localStorage.setItem("rugged_chat_messages", JSON.stringify(state.messages.slice(-200)));
     const el = document.createElement("div");
     el.className = "msg " + role;
     el.textContent = content;
@@ -131,8 +127,6 @@
     el.scrollIntoView({behavior:"smooth", block:"end"});
     return el;
   }
-
-  for (const m of state.messages) { const el=document.createElement("div"); el.className="msg "+m.role; el.textContent=m.content; $("messages").appendChild(el); }
 
   async function getGPUInfo() {
     if (!navigator.gpu) return {ok:false, reason:"WebGPU is not available in this browser."};
@@ -177,8 +171,7 @@
     const info = await getGPUInfo();
     if (!info.ok) {
       $("deviceText").textContent = info.reason;
-      setStatus("WebGPU unavailable — server fallback available", "warn");
-      if(state.apiUrl && state.apiKey){ state.useServer=true; $("input").disabled=false; $("send").disabled=false; }
+      setStatus("WebGPU unavailable", "warn");
       return false;
     }
     const tier = chooseTier(info);
@@ -212,8 +205,7 @@
     } catch (e) {
       $("downloadBtn").disabled = false;
       $("progress").textContent = "Local model failed: " + e.message;
-      setStatus("Local model failed — server fallback available", "warn");
-      if(state.apiUrl && state.apiKey){ state.useServer=true; $("input").disabled=false; $("send").disabled=false; }
+      setStatus("Local model failed", "bad");
       return false;
     }
   }
@@ -286,7 +278,7 @@
     $("input").disabled = false;
     $("send").disabled = false;
     setStatus("Server fallback mode", "warn");
-    $("progress").textContent = "Server mode selected. Configure the API URL and key in Settings.";
+    $("progress").textContent = "Server mode selected. Configure the API URL and API key in Settings.";
   };
   $("send").onclick = send;
   $("input").addEventListener("keydown", e => {

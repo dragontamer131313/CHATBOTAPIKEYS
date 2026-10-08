@@ -4,68 +4,34 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rugged AI Developer Portal</title>
 <style>
-body{font-family:system-ui,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#0f1115;color:#eee} .card{background:#181b22;border:1px solid #2a2f3a;border-radius:16px;padding:22px;margin:14px 0} input,select{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #3a4050;background:#0d0f13;color:#fff;margin-top:6px}button{padding:12px 16px;border:0;border-radius:10px;cursor:pointer;margin:8px 8px 0 0} .primary{background:#fff;color:#111}.danger{background:#6b2020;color:#fff}.small{color:#aeb5c2;font-size:.9rem}.key{font-family:ui-monospace,monospace;word-break:break-all;background:#080a0d;padding:14px;border-radius:10px;margin-top:12px}.hidden{display:none}.warn{color:#ffcc66}.ok{color:#72e6a2} a{color:#8db7ff}
-</style></head>
-<body>
+body{margin:0;background:#0b0e13;color:#eef2f7;font:16px system-ui;padding:24px}main{max-width:680px;margin:auto}.card{background:#141922;border:1px solid #2a3342;border-radius:16px;padding:20px;margin:14px 0}input,select,button{width:100%;box-sizing:border-box;padding:12px;margin:7px 0;border-radius:10px;border:1px solid #2a3342;background:#0f141c;color:#eef2f7;font:inherit}button{cursor:pointer}button.primary{background:#69a7ff;color:#06101f;font-weight:700}pre{white-space:pre-wrap;word-break:break-all;background:#0f141c;padding:14px;border-radius:10px}small{color:#9ba7b8}.key{font-size:18px}.warn{padding:12px;border-radius:10px;background:#332b14;color:#ffe7a3;margin-top:10px}a{color:#8bbcff}
+</style>
+</head>
+<body><main>
 <h1>Rugged AI Developer Portal</h1>
-<p class="small">Generate a key for your own chatbot, website, APK, server, or local application. No Rugged AI account is required.</p>
-
+<p><small>Generate a Rugged AI API key for your own website, APK, chatbot, or server. No Rugged account is required.</small></p>
 <div class="card">
-<h2>Connect to your Rugged AI API</h2>
-<label>API URL<input id="apiUrl" placeholder="https://your-service.onrender.com"></label>
-<p class="small">This is the URL of your deployed Rugged AI backend.</p>
+<label>Rugged API URL<input id="api" placeholder="https://your-service.onrender.com"></label>
+<label>Project name<input id="name" value="My Project" maxlength="100"></label>
+<label>Key type<select id="edition"><option value="standard">General — Standard</option><option value="nsfw">General + Adult — NSFW-capable</option></select></label>
+<button class="primary" id="generate">Generate API Key</button>
+<div id="out"></div>
 </div>
-
-<div class="card">
-<h2>Generate API key</h2>
-<label>Project name<input id="name" value="My Rugged AI App" maxlength="100"></label>
-<label style="display:block;margin-top:14px">Edition<select id="edition"><option value="standard">General</option><option value="nsfw">Adult-capable</option></select></label>
-<p class="small">Adult-capable keys should only be used in applications intended for adults and must never be used for minors or sexual content involving minors.</p>
-<button id="generate" class="primary">Generate API key</button>
-<div id="status" class="small"></div>
-</div>
-
-<div id="once" class="card hidden">
-<h2>Save this key now</h2>
-<p class="warn"><strong>This is the only time the full key will be shown.</strong> Copy it and store it securely. We do not provide a way to display the secret again.</p>
-<div id="key" class="key"></div>
-<button id="copy" class="primary">Copy API key</button>
-<p class="small">For a public APK, do not embed a valuable secret key directly in the app. Prefer routing requests through your own server.</p>
-</div>
-
-<div class="card">
-<h2>Use it</h2>
-<p>Rugged AI exposes an OpenAI-compatible endpoint:</p>
-<div class="key">POST /v1/chat/completions<br>Authorization: Bearer rk_...</div>
-<p class="small">Your application can send normal chat-completion requests with the key. Keep the key private on your server whenever possible.</p>
-</div>
-
-<div class="card">
-<h2>Revoke a key</h2>
-<p class="small">If you still have the secret, you can revoke it here. Revocation is permanent for that key.</p>
-<input id="revokeKey" type="password" placeholder="rk_std_... or rk_nsfw_...">
-<button id="revoke" class="danger">Revoke key</button>
-<div id="revokeStatus" class="small"></div>
-</div>
-
+<div class="card"><b>Important</b><p><small>The complete API key is displayed only once. Save it securely. Do not put a powerful secret key directly into a public website or APK if users could extract it; use your own server as a proxy when appropriate.</small></p></div>
+<p><a href="/">← Back to Rugged AI</a></p>
 <script>
-const storedApi=(localStorage.getItem('rugged_api_url')||''); $('apiUrl').value=storedApi; const api=()=>($('apiUrl').value.trim()||'').replace(/\/$/,'');
 const $=id=>document.getElementById(id);
+const saved=localStorage.getItem('rugged_api_url')||'';$('api').value=saved;
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 $('generate').onclick=async()=>{
-  const base=api(); localStorage.setItem('rugged_api_url',base); if(!base){$('status').textContent='Set the API URL first by adding ?api=https://your-api.example.com to this page, or configure RUGGED_API_URL in the deployment.';return;}
-  $('generate').disabled=true;$('status').textContent='Generating…';
-  try{
-    const r=await fetch(base+'/developer/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value.trim()||'My Rugged AI App',edition:$('edition').value})});
-    const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));
-    $('key').textContent=d.api_key;$('once').classList.remove('hidden');$('status').innerHTML='<span class="ok">Key generated.</span>';$('generate').disabled=false;
-  }catch(e){$('status').textContent='Could not generate key: '+e.message;$('generate').disabled=false;}
+ const base=$('api').value.trim().replace(/\/$/,''); if(!base){$('out').innerHTML='<div class="warn">Enter your Render API URL first.</div>';return}
+ localStorage.setItem('rugged_api_url',base); $('generate').disabled=true; $('out').textContent='Generating…';
+ try{
+  const r=await fetch(base+'/api/keys/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value.trim()||'My Project',edition:$('edition').value})});
+  const d=await r.json(); if(!r.ok) throw new Error(d.detail||'Key generation failed');
+  $('out').innerHTML='<div class="warn">'+esc(d.warning)+'</div><pre class="key" id="secret">'+esc(d.api_key)+'</pre><button id="copy">Copy API Key</button>';
+  $('copy').onclick=async()=>{await navigator.clipboard.writeText(d.api_key);$('copy').textContent='Copied';};
+  $('generate').disabled=true;
+ }catch(e){$('out').innerHTML='<div class="warn">'+esc(e.message)+'</div>';$('generate').disabled=false}
 };
-$('copy').onclick=async()=>{await navigator.clipboard.writeText($('key').textContent);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy API key',1500)};
-$('revoke').onclick=async()=>{
- const k=$('revokeKey').value.trim(); if(!k)return;
- $('revoke').disabled=true;$('revokeStatus').textContent='Revoking…';
- try{const r=await fetch(api()+'/developer/keys/revoke',{method:'POST',headers:{'Authorization':'Bearer '+k}});const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));$('revokeStatus').innerHTML='<span class="ok">Key revoked.</span>'}catch(e){$('revokeStatus').textContent='Could not revoke key: '+e.message}finally{$('revoke').disabled=false}
-};
-const q=new URLSearchParams(location.search); if(q.get('api')){localStorage.setItem('rugged_api_url',q.get('api'));$('apiUrl').value=q.get('api')}
-</script>
-</body></html>
+</script></main></body></html>

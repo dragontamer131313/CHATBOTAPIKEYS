@@ -96,11 +96,14 @@ def rate_limit(key_id:str):
 class AccountIn(BaseModel): email:str; password:str=Field(min_length=8,max_length=256)
 class KeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
 class PublicKeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
-
 class Chat(BaseModel): messages:list[dict]; content_mode:str="general"; model:Optional[str]=None; stream:bool=False; temperature:float=Field(.8,ge=0,max=2); max_tokens:int=Field(512,ge=1,le=4096)
 
+@app.get("/")
+def root():
+    return {"name":"Rugged AI API","version":"7.1","status":"online","docs":"/docs","health":"/health","chat":"/v1/chat/completions","developer_portal":"Use the Netlify frontend connected to this API."}
+
 @app.get("/health")
-def health():return {"ok":True,"version":"7.0"}
+def health():return {"ok":True,"version":"7.1"}
 @app.get("/ready")
 def ready():return {"ready":True,"database":DATABASE_URL.split(":",1)[0],"redis":bool(_redis)}
 @app.get("/api/capabilities")
@@ -119,26 +122,35 @@ def login(x:AccountIn):
     if not u or not pwd_ok(x.password,u.password):raise HTTPException(401,"Invalid credentials")
     return {"token":jwt_for(u.id),"user_id":u.id}
 
-@app.post("/developer/keys")
-def developer_create_key(x:PublicKeyIn, request:Request):
-    # Public developer portal: no account/login is required. Rate-limit key creation by IP.
+@app.post("/api/keys/generate")
+def generate_public_key(x:PublicKeyIn, request:Request):
+    """Create a developer API key without creating a Rugged account.
+    The secret is returned exactly once. Only its SHA-256 hash is stored.
+    """
+    if x.edition not in ("standard", "nsfw"):
+        raise HTTPException(400,"edition must be standard or nsfw")
+    # Basic abuse control for anonymous key creation. Redis is shared when available;
+    # local fallback is intentionally conservative.
     ip=request.client.host if request.client else "unknown"
-    rate_limit("portal:"+ip)
-    if x.edition not in ("standard","nsfw"): raise HTTPException(400,"edition must be standard or nsfw")
+    bucket=int(time.time())//3600
+    limiter_key=f"rugged:keygen:{ip}:{bucket}"
+    try:
+        if _redis:
+            n=_redis.incr(limiter_key); _redis.expire(limiter_key,3700)
+        else:
+            n=_local_rate.get(limiter_key,0)+1; _local_rate[limiter_key]=n
+        if n>5:
+            raise HTTPException(429,"Too many key generations. Try again later.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
     raw="rk_"+("nsfw_" if x.edition=="nsfw" else "std_")+secrets.token_urlsafe(32)
     kid=str(uuid.uuid4())
+    # Anonymous developer keys use a reserved owner; no login/account is required.
     with Session(engine) as db:
-        db.add(ApiKey(id=kid,user_id="public-developer",name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time())); db.commit()
-    return {"api_key":raw,"id":kid,"edition":x.edition,"warning":"This secret is shown only once. Store it securely."}
-
-@app.post("/developer/keys/revoke")
-def developer_revoke_key(authorization:Optional[str]=Header(None)):
-    k=key_auth(authorization)
-    with Session(engine) as db:
-        row=db.scalar(select(ApiKey).where(ApiKey.id==k.id,ApiKey.user_id=="public-developer"))
-        if not row: raise HTTPException(403,"Only developer-portal keys can be revoked here")
-        row.active=False; db.commit()
-    return {"ok":True}
+        db.add(ApiKey(id=kid,user_id="public",name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time()));db.commit()
+    return {"api_key":raw,"id":kid,"edition":x.edition,"default_content_mode":"general","warning":"Save this API key now. The full secret will not be shown again."}
 
 @app.post("/api/keys")
 def create_key(x:KeyIn,authorization:Optional[str]=Header(None)):
@@ -148,6 +160,15 @@ def create_key(x:KeyIn,authorization:Optional[str]=Header(None)):
     kid=str(uuid.uuid4())
     with Session(engine) as db:db.add(ApiKey(id=kid,user_id=uid,name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time()));db.commit()
     return {"api_key":raw,"id":kid,"edition":x.edition,"default_content_mode":"general"}
+@app.post("/api/keys/revoke-self")
+def revoke_self(authorization:Optional[str]=Header(None)):
+    k=key_auth(authorization)
+    with Session(engine) as db:
+        r=db.scalar(select(ApiKey).where(ApiKey.id==k.id))
+        if not r: raise HTTPException(404,"Key not found")
+        r.active=False; db.commit()
+    return {"ok":True,"revoked":True}
+
 @app.get("/api/keys")
 def list_keys(authorization:Optional[str]=Header(None)):
     uid=account(authorization)
