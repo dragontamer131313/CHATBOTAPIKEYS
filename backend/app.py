@@ -95,6 +95,8 @@ def rate_limit(key_id:str):
 
 class AccountIn(BaseModel): email:str; password:str=Field(min_length=8,max_length=256)
 class KeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
+class PublicKeyIn(BaseModel): name:str=Field(default="My Project",max_length=100); edition:str="standard"
+
 class Chat(BaseModel): messages:list[dict]; content_mode:str="general"; model:Optional[str]=None; stream:bool=False; temperature:float=Field(.8,ge=0,max=2); max_tokens:int=Field(512,ge=1,le=4096)
 
 @app.get("/health")
@@ -116,6 +118,27 @@ def login(x:AccountIn):
     with Session(engine) as db:u=db.scalar(select(User).where(User.email==x.email.lower()))
     if not u or not pwd_ok(x.password,u.password):raise HTTPException(401,"Invalid credentials")
     return {"token":jwt_for(u.id),"user_id":u.id}
+
+@app.post("/developer/keys")
+def developer_create_key(x:PublicKeyIn, request:Request):
+    # Public developer portal: no account/login is required. Rate-limit key creation by IP.
+    ip=request.client.host if request.client else "unknown"
+    rate_limit("portal:"+ip)
+    if x.edition not in ("standard","nsfw"): raise HTTPException(400,"edition must be standard or nsfw")
+    raw="rk_"+("nsfw_" if x.edition=="nsfw" else "std_")+secrets.token_urlsafe(32)
+    kid=str(uuid.uuid4())
+    with Session(engine) as db:
+        db.add(ApiKey(id=kid,user_id="public-developer",name=x.name,key_hash=hashlib.sha256(raw.encode()).hexdigest(),edition=x.edition,active=True,created=time.time())); db.commit()
+    return {"api_key":raw,"id":kid,"edition":x.edition,"warning":"This secret is shown only once. Store it securely."}
+
+@app.post("/developer/keys/revoke")
+def developer_revoke_key(authorization:Optional[str]=Header(None)):
+    k=key_auth(authorization)
+    with Session(engine) as db:
+        row=db.scalar(select(ApiKey).where(ApiKey.id==k.id,ApiKey.user_id=="public-developer"))
+        if not row: raise HTTPException(403,"Only developer-portal keys can be revoked here")
+        row.active=False; db.commit()
+    return {"ok":True}
 
 @app.post("/api/keys")
 def create_key(x:KeyIn,authorization:Optional[str]=Header(None)):

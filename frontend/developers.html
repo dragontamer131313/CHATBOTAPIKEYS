@@ -2,43 +2,70 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Rugged AI Developer Keys</title>
+<title>Rugged AI Developer Portal</title>
 <style>
-body{margin:0;background:#0b0e13;color:#eef2f7;font:15px system-ui;padding:24px}
-main{max-width:650px;margin:auto}.card{background:#141922;border:1px solid #2a3342;border-radius:14px;padding:18px;margin:12px 0}
-input,select,button{width:100%;box-sizing:border-box;padding:11px;margin:6px 0;border-radius:10px;border:1px solid #2a3342;background:#0f141c;color:#eef2f7}
-button{cursor:pointer;background:#1a202b}button.primary{background:#69a7ff;color:#06101f;font-weight:700}
-pre{white-space:pre-wrap;word-break:break-all;background:#0f141c;padding:12px;border-radius:10px}
-small{color:#9ba7b8}
-</style>
-</head>
-<body><main>
-<h1>Rugged AI Developer Keys</h1>
-<p><small>Create your Rugged account, then create a key for your own apps. These are Rugged keys, not OpenAI keys.</small></p>
+body{font-family:system-ui,sans-serif;max-width:760px;margin:0 auto;padding:24px;background:#0f1115;color:#eee} .card{background:#181b22;border:1px solid #2a2f3a;border-radius:16px;padding:22px;margin:14px 0} input,select{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #3a4050;background:#0d0f13;color:#fff;margin-top:6px}button{padding:12px 16px;border:0;border-radius:10px;cursor:pointer;margin:8px 8px 0 0} .primary{background:#fff;color:#111}.danger{background:#6b2020;color:#fff}.small{color:#aeb5c2;font-size:.9rem}.key{font-family:ui-monospace,monospace;word-break:break-all;background:#080a0d;padding:14px;border-radius:10px;margin-top:12px}.hidden{display:none}.warn{color:#ffcc66}.ok{color:#72e6a2} a{color:#8db7ff}
+</style></head>
+<body>
+<h1>Rugged AI Developer Portal</h1>
+<p class="small">Generate a key for your own chatbot, website, APK, server, or local application. No Rugged AI account is required.</p>
+
 <div class="card">
-<label>Rugged API URL<input id="api" placeholder="https://your-service.onrender.com"></label>
-<label>Email<input id="email" type="email"></label>
-<label>Password<input id="password" type="password"></label>
-<label>Key name<input id="name" value="My Project"></label>
-<label>Edition<select id="edition"><option value="standard">Standard — General</option><option value="nsfw">NSFW-capable — General + Adult</option></select></label>
-<button class="primary" id="register">Create account</button>
-<button id="login">Log in</button>
-<button id="key">Create API key</button>
-<div id="out"></div>
+<h2>Connect to your Rugged AI API</h2>
+<label>API URL<input id="apiUrl" placeholder="https://your-service.onrender.com"></label>
+<p class="small">This is the URL of your deployed Rugged AI backend.</p>
 </div>
+
+<div class="card">
+<h2>Generate API key</h2>
+<label>Project name<input id="name" value="My Rugged AI App" maxlength="100"></label>
+<label style="display:block;margin-top:14px">Edition<select id="edition"><option value="standard">General</option><option value="nsfw">Adult-capable</option></select></label>
+<p class="small">Adult-capable keys should only be used in applications intended for adults and must never be used for minors or sexual content involving minors.</p>
+<button id="generate" class="primary">Generate API key</button>
+<div id="status" class="small"></div>
+</div>
+
+<div id="once" class="card hidden">
+<h2>Save this key now</h2>
+<p class="warn"><strong>This is the only time the full key will be shown.</strong> Copy it and store it securely. We do not provide a way to display the secret again.</p>
+<div id="key" class="key"></div>
+<button id="copy" class="primary">Copy API key</button>
+<p class="small">For a public APK, do not embed a valuable secret key directly in the app. Prefer routing requests through your own server.</p>
+</div>
+
+<div class="card">
+<h2>Use it</h2>
+<p>Rugged AI exposes an OpenAI-compatible endpoint:</p>
+<div class="key">POST /v1/chat/completions<br>Authorization: Bearer rk_...</div>
+<p class="small">Your application can send normal chat-completion requests with the key. Keep the key private on your server whenever possible.</p>
+</div>
+
+<div class="card">
+<h2>Revoke a key</h2>
+<p class="small">If you still have the secret, you can revoke it here. Revocation is permanent for that key.</p>
+<input id="revokeKey" type="password" placeholder="rk_std_... or rk_nsfw_...">
+<button id="revoke" class="danger">Revoke key</button>
+<div id="revokeStatus" class="small"></div>
+</div>
+
 <script>
+const storedApi=(localStorage.getItem('rugged_api_url')||''); $('apiUrl').value=storedApi; const api=()=>($('apiUrl').value.trim()||'').replace(/\/$/,'');
 const $=id=>document.getElementById(id);
-let token=localStorage.getItem("rugged_dev_token")||"";
-$("api").value=localStorage.getItem("rugged_dev_api")||"";
-async function call(path,body,auth=false){
- const base=$("api").value.trim().replace(/\/$/,""); localStorage.setItem("rugged_dev_api",base);
- const headers={"Content-Type":"application/json"}; if(auth)headers.Authorization="Bearer "+token;
- const r=await fetch(base+path,{method:"POST",headers,body:JSON.stringify(body)});
- const text=await r.text(); let data; try{data=JSON.parse(text)}catch{data={raw:text}};
- if(!r.ok)throw new Error(data.detail||data.message||text); return data;
-}
-function show(x){$("out").innerHTML="<pre>"+JSON.stringify(x,null,2).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))+"</pre>"}
-$("register").onclick=async()=>{try{const d=await call("/auth/register",{email:$("email").value,password:$("password").value});token=d.token;localStorage.setItem("rugged_dev_token",token);show({message:"Account created. Now press Create API key.",user_id:d.user_id})}catch(e){show({error:e.message})}};
-$("login").onclick=async()=>{try{const d=await call("/auth/login",{email:$("email").value,password:$("password").value});token=d.token;localStorage.setItem("rugged_dev_token",token);show({message:"Logged in. Now press Create API key.",user_id:d.user_id})}catch(e){show({error:e.message})}};
-$("key").onclick=async()=>{try{if(!token)throw new Error("Register or log in first.");const d=await call("/api/keys",{name:$("name").value,edition:$("edition").value},true);show({message:"Save this key now. The secret is returned when it is created.",...d})}catch(e){show({error:e.message})}};
-</script></main></body></html>
+$('generate').onclick=async()=>{
+  const base=api(); localStorage.setItem('rugged_api_url',base); if(!base){$('status').textContent='Set the API URL first by adding ?api=https://your-api.example.com to this page, or configure RUGGED_API_URL in the deployment.';return;}
+  $('generate').disabled=true;$('status').textContent='Generating…';
+  try{
+    const r=await fetch(base+'/developer/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value.trim()||'My Rugged AI App',edition:$('edition').value})});
+    const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));
+    $('key').textContent=d.api_key;$('once').classList.remove('hidden');$('status').innerHTML='<span class="ok">Key generated.</span>';$('generate').disabled=false;
+  }catch(e){$('status').textContent='Could not generate key: '+e.message;$('generate').disabled=false;}
+};
+$('copy').onclick=async()=>{await navigator.clipboard.writeText($('key').textContent);$('copy').textContent='Copied';setTimeout(()=>$('copy').textContent='Copy API key',1500)};
+$('revoke').onclick=async()=>{
+ const k=$('revokeKey').value.trim(); if(!k)return;
+ $('revoke').disabled=true;$('revokeStatus').textContent='Revoking…';
+ try{const r=await fetch(api()+'/developer/keys/revoke',{method:'POST',headers:{'Authorization':'Bearer '+k}});const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));$('revokeStatus').innerHTML='<span class="ok">Key revoked.</span>'}catch(e){$('revokeStatus').textContent='Could not revoke key: '+e.message}finally{$('revoke').disabled=false}
+};
+const q=new URLSearchParams(location.search); if(q.get('api')){localStorage.setItem('rugged_api_url',q.get('api'));$('apiUrl').value=q.get('api')}
+</script>
+</body></html>
