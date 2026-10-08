@@ -1,61 +1,37 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#070a10"><title>Rugged AI Developer Guide</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rugged AI Developer Portal</title>
 <style>
-:root{color-scheme:dark;--bg:#070a10;--panel:#101620;--panel2:#151d29;--line:#263244;--text:#f4f7fb;--muted:#93a1b5;--accent:#7ab0ff;--accent2:#9b8cff;--good:#6ee7a0;--warn:#ffd36a}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#17243a 0,#070a10 48%);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}main{max-width:760px;margin:auto;padding:44px 18px 60px}.brand{font-weight:900;font-size:20px;letter-spacing:.3px}.hero{text-align:center;padding:42px 0 28px}.hero h1{font-size:clamp(34px,7vw,58px);line-height:1.02;margin:18px 0 12px}.hero p{color:var(--muted);max-width:620px;margin:auto;line-height:1.6}.card{background:rgba(16,22,32,.9);border:1px solid var(--line);border-radius:22px;padding:22px;margin:14px 0;box-shadow:0 20px 70px rgba(0,0,0,.18)}.step{display:flex;gap:12px;align-items:center;margin-bottom:18px}.num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);border:1px solid var(--line);color:var(--muted);font-weight:800}.step h2{font-size:18px;margin:0}.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}.choice{position:relative;border:1px solid var(--line);background:#0d131d;border-radius:16px;padding:18px;text-align:left;cursor:pointer;min-height:125px}.choice:hover{border-color:#50627d}.choice.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#111c2c}.choice strong{display:block;font-size:17px;margin-bottom:6px}.choice span{display:block;color:var(--muted);font-size:13px;line-height:1.45}.badge{display:inline-block;font-size:11px;padding:3px 7px;border-radius:999px;background:#202b3b;color:#b9c8dc;margin-top:10px}.adult .badge{background:#30223b;color:#d9bfff}.summary{background:#0b1018;border:1px dashed #334156;border-radius:14px;padding:14px;line-height:1.55}.summary b{color:var(--text)}button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:13px 16px;font:inherit;cursor:pointer;width:100%}button.primary{background:var(--accent);border-color:var(--accent);color:#07101c;font-weight:850}button:disabled{opacity:.5;cursor:not-allowed}.keybox{margin-top:14px;background:#080c12;border:1px solid #3b4b61;border-radius:14px;padding:16px}.key{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;line-height:1.5}.warning{color:var(--warn);font-size:13px;line-height:1.5;margin-top:10px}.ok{color:var(--good)}.muted{color:var(--muted)}.hidden{display:none}.footer{color:var(--muted);font-size:12px;text-align:center;margin-top:26px;line-height:1.6}.links{text-align:center;margin-top:20px}.links a{color:#a8c5ff;text-decoration:none}.error{margin-top:12px;color:#ff9b9b;background:#2b1519;border:1px solid #593039;border-radius:12px;padding:12px;font-size:13px}.tiny{font-size:12px;color:var(--muted);line-height:1.5}
-@media(max-width:620px){.choices{grid-template-columns:1fr}.hero{padding-top:28px}main{padding-top:24px}}
+body{margin:0;background:#0b0e13;color:#eef2f7;font:16px system-ui;padding:24px}main{max-width:680px;margin:auto}.card{background:#141922;border:1px solid #2a3342;border-radius:16px;padding:20px;margin:14px 0}input,select,button{width:100%;box-sizing:border-box;padding:12px;margin:7px 0;border-radius:10px;border:1px solid #2a3342;background:#0f141c;color:#eef2f7;font:inherit}button{cursor:pointer}button.primary{background:#69a7ff;color:#06101f;font-weight:700}pre{white-space:pre-wrap;word-break:break-all;background:#0f141c;padding:14px;border-radius:10px}small{color:#9ba7b8}.key{font-size:18px}.warn{padding:12px;border-radius:10px;background:#332b14;color:#ffe7a3;margin-top:10px}a{color:#8bbcff}
 </style>
 </head>
 <body><main>
-<div class="brand">RUGGED AI</div>
-<section class="hero"><h1>AI for your app.<br>Server or offline.</h1><p>Choose the model you want, choose how it should run, then get one API key. Your app can use Rugged's server or, when supported, download the compatible local model to the user's device.</p></section>
-
-<section class="card">
-<div class="step"><div class="num">1</div><h2>Choose your model</h2></div>
-<div class="choices" id="editionChoices">
-<button class="choice selected" data-value="standard"><strong>Regular</strong><span>General-purpose Rugged AI for everyday apps, assistants and chatbots.</span><span class="badge">General</span></button>
-<button class="choice adult" data-value="nsfw"><strong>Adult</strong><span>Adult-capable API access. Your application must restrict this mode to appropriate adult users.</span><span class="badge">18+ / Adult</span></button>
+<h1>Rugged AI Developer Portal</h1>
+<p><small>Generate a Rugged AI API key for your own website, APK, chatbot, or server. No Rugged account is required.</small></p>
+<div class="card">
+<label>Rugged API URL<input id="api" placeholder="https://your-service.onrender.com"></label>
+<label>Project name<input id="name" value="My Project" maxlength="100"></label>
+<label>Key type<select id="edition"><option value="standard">General — Standard</option><option value="nsfw">General + Adult — NSFW-capable</option></select></label>
+<button class="primary" id="generate">Generate API Key</button>
+<div id="out"></div>
 </div>
-</section>
-
-<section class="card">
-<div class="step"><div class="num">2</div><h2>Choose where it runs</h2></div>
-<div class="choices" id="deploymentChoices">
-<button class="choice selected" data-value="server"><strong>Server only</strong><span>Every request runs through your Rugged server connection. No model download is needed on users' devices.</span><span class="badge">Always available</span></button>
-<button class="choice" data-value="server+offline"><strong>Server + offline</strong><span>Your app uses the server by default and can automatically use a compatible local model when the user's device supports it.</span><span class="badge">WebGPU / compatible device</span></button>
-</div>
-</section>
-
-<section class="card">
-<div class="step"><div class="num">3</div><h2>Get your API key</h2></div>
-<div class="summary" id="summary"></div>
-<div id="adultAck" class="tiny hidden" style="margin:12px 0"><label><input id="adultConfirm" type="checkbox" style="width:auto;margin-right:8px"> I confirm this Adult key is for an adult-only experience and my application will not make Adult mode available to minors.</label></div>
-<p class="tiny">No Rugged account is required. The key is generated once and the full secret is shown only once.</p>
-<button class="primary" id="generate">Get API key</button>
-<div id="result"></div>
-</section>
-
-<div class="links"><a href="developers.html">Developer guide</a></div>
-<div class="footer">Rugged AI does not magically install software into arbitrary third-party apps. To enable automatic local model selection, the app developer integrates the Rugged client/runtime. The key authorizes the app's Rugged configuration; the local model itself is downloaded and cached by the client when allowed.</div>
-</main>
-<script src="config.js"></script>
+<div class="card"><b>Important</b><p><small>The complete API key is displayed only once. Save it securely. Do not put a powerful secret key directly into a public website or APK if users could extract it; use your own server as a proxy when appropriate.</small></p></div>
+<p><a href="/">← Back to Rugged AI</a></p>
 <script>
-const $=id=>document.getElementById(id);let edition='standard',deployment='server';
-function pick(group,value){document.querySelectorAll('#'+group+' .choice').forEach(x=>x.classList.toggle('selected',x.dataset.value===value));}
-function update(){pick('editionChoices',edition);pick('deploymentChoices',deployment);$('adultAck').classList.toggle('hidden',edition!=='nsfw');$('summary').innerHTML='<b>Model:</b> '+(edition==='nsfw'?'Adult':'Regular')+'<br><b>Runtime:</b> '+(deployment==='server'?'Server only':'Server + offline local fallback')+'<br><b>Key:</b> One-time secret for your app';}
-document.querySelectorAll('#editionChoices .choice').forEach(b=>b.onclick=()=>{edition=b.dataset.value;update()});
-document.querySelectorAll('#deploymentChoices .choice').forEach(b=>b.onclick=()=>{deployment=b.dataset.value;update()});update();
+const $=id=>document.getElementById(id);
+const saved=localStorage.getItem('rugged_api_url')||'';$('api').value=saved;
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 $('generate').onclick=async()=>{
- if(edition==='nsfw' && !$('adultConfirm').checked){$('result').innerHTML='<div class="error">Please confirm that Adult mode will be restricted to adults before generating the key.</div>';return}
- const base=(window.RUGGED_API_URL||'').trim().replace(/\/$/,'');
- const url=(base||'')+'/api/keys/generate'; $('generate').disabled=true;$('result').innerHTML='<p class="muted">Generating your key…</p>';
- try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'My Rugged App',edition,deployment})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Key generation failed');
- $('result').innerHTML='<div class="keybox"><div class="ok"><b>API key generated</b></div><p class="key" id="secret">'+esc(d.api_key)+'</p><button id="copy">Copy key</button><p class="warning">'+esc(d.warning)+'</p></div>';
- $('copy').onclick=async()=>{await navigator.clipboard.writeText(d.api_key);$('copy').textContent='Copied ✓'};
- }catch(e){$('result').innerHTML='<div class="error">'+esc(e.message)+'</div>'; $('generate').disabled=false}
+ const base=$('api').value.trim().replace(/\/$/,''); if(!base){$('out').innerHTML='<div class="warn">Enter your Render API URL first.</div>';return}
+ localStorage.setItem('rugged_api_url',base); $('generate').disabled=true; $('out').textContent='Generating…';
+ try{
+  const r=await fetch(base+'/api/keys/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('name').value.trim()||'My Project',edition:$('edition').value})});
+  const d=await r.json(); if(!r.ok) throw new Error(d.detail||'Key generation failed');
+  $('out').innerHTML='<div class="warn">'+esc(d.warning)+'</div><pre class="key" id="secret">'+esc(d.api_key)+'</pre><button id="copy">Copy API Key</button>';
+  $('copy').onclick=async()=>{await navigator.clipboard.writeText(d.api_key);$('copy').textContent='Copied';};
+  $('generate').disabled=true;
+ }catch(e){$('out').innerHTML='<div class="warn">'+esc(e.message)+'</div>';$('generate').disabled=false}
 };
-</script></body></html>
+</script></main></body></html>
